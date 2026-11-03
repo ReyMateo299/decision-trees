@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decision Trees in Probabilistic ML — Interactive Cost Function Lab</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        slate: {
+                            850: '#151e2e',
+                            920: '#0b1120',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overflow-x: hidden;
+        }
+        .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Custom Range Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 8px;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.25);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            background: #38bdf8;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+            margin-top: -6px;
+            transition: transform 0.15s ease, background-color 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #0284c7;
+        }
+        .glass-card {
+            backdrop-filter: blur(12px);
+            transition: all 0.2s ease;
+        }
+        .mission-active {
+            border-color: #38bdf8 !important;
+            box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+        }
+        svg {
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-920 text-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-200">
+
+    <!-- Top Navigation Bar -->
+    <header class="sticky top-0 z-40 border-b border-slate-200 dark:border-slate-800 bg-white/85 dark:bg-slate-900/85 backdrop-blur-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-sky-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg shadow-sky-500/20">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                    </svg>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-lg sm:text-xl font-bold tracking-tight">Probabilistic Decision Trees Lab</h1>
+                        <span class="hidden sm:inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 border border-sky-500/20">
+                            ID3 • C4.5 • CART
+                        </span>
+                    </div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Information Theory, Strict Concavity, and Splitting Criteria Visualized</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Quick Module Jumpers -->
+                <nav class="hidden md:flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-medium">
+                    <a href="#module-1" class="px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition">1. Impurity Geometry & Jensen's</a>
+                    <a href="#module-2" class="px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition">2. Split Simulator & C4.5</a>
+                    <a href="#module-3" class="px-3 py-1.5 rounded-lg hover:bg-white dark:hover:bg-slate-700 transition">3. Probabilistic ML & KL</a>
+                </nav>
+
+                <!-- Theme Toggle -->
+                <button id="themeToggle" class="p-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 transition" title="Toggle Dark/Light Theme">
+                    <svg id="sunIcon" class="w-5 h-5 text-amber-400 hidden dark:block" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="moonIcon" class="w-5 h-5 text-slate-700 block dark:hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-10">
+
+        <!-- Interactive Guided Missions Bar -->
+        <section class="bg-gradient-to-r from-sky-500/10 via-indigo-500/10 to-purple-500/10 border border-sky-500/20 rounded-2xl p-4 sm:p-5">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-600 dark:text-sky-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-sky-500 animate-ping"></span>
+                        Interactive Guided Learning Missions
+                    </span>
+                    <h2 class="text-base sm:text-lg font-bold mt-0.5">Click any mission below to configure the simulators & uncover core insights:</h2>
+                </div>
+                <div id="missionStatusBadge" class="text-xs mono px-3 py-1.5 rounded-lg bg-white/80 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 self-start md:self-auto">
+                    Active Mission: <span id="activeMissionName" class="font-semibold text-sky-500">Mission 1 — Strict Concavity Trap</span>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                <button onclick="activateMission(1)" id="mission-btn-1" class="mission-btn mission-active text-left p-3.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 hover:border-sky-400 transition group">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-sky-500">MISSION 01</span>
+                        <span class="text-[11px] px-2 py-0.5 rounded bg-amber-500/10 text-amber-500 font-medium">Geometry</span>
+                    </div>
+                    <div class="font-semibold text-sm group-hover:text-sky-400 transition">The Strict Concavity Trap</div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Why Misclassification Error gets stuck at 0 gain while Gini & Entropy find pure nodes.</p>
+                </button>
+
+                <button onclick="activateMission(2)" id="mission-btn-2" class="mission-btn text-left p-3.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 hover:border-sky-400 transition group">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-indigo-500">MISSION 02</span>
+                        <span class="text-[11px] px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-400 font-medium">CART vs ID3</span>
+                    </div>
+                    <div class="font-semibold text-sm group-hover:text-sky-400 transition">Gini vs. Entropy Sensitivity</div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Explore how $-\log_2(p)$ penalizes impure tails more aggressively than quadratic $2p(1-p)$.</p>
+                </button>
+
+                <button onclick="activateMission(3)" id="mission-btn-3" class="mission-btn text-left p-3.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 hover:border-sky-400 transition group">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-emerald-500">MISSION 03</span>
+                        <span class="text-[11px] px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-medium">ID3 vs C4.5</span>
+                    </div>
+                    <div class="font-semibold text-sm group-hover:text-sky-400 transition">The High-Cardinality Trap</div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">See how ID3 overfits to noisy "User ID" buckets and how C4.5's SplitInfo fixes it.</p>
+                </button>
+
+                <button onclick="activateMission(4)" id="mission-btn-4" class="mission-btn text-left p-3.5 rounded-xl bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 hover:border-sky-400 transition group">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-xs font-bold text-purple-500">MISSION 04</span>
+                        <span class="text-[11px] px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 font-medium">Probabilistic ML</span>
+                    </div>
+                    <div class="font-semibold text-sm group-hover:text-sky-400 transition">Leaves as MLE & KL-Divergence</div>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Discover why minimizing Entropy is equivalent to maximizing Categorical Log-Likelihood.</p>
+                </button>
+            </div>
+
+            <!-- Dynamic Mission Guidance Callout -->
+            <div id="missionCallout" class="mt-4 p-3.5 rounded-xl bg-white/90 dark:bg-slate-900/90 border border-sky-500/30 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div class="flex items-start gap-3">
+                    <div class="p-2 rounded-lg bg-sky-500/10 text-sky-500 mt-0.5">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <h4 id="missionGuideTitle" class="text-sm font-bold text-slate-900 dark:text-white">Mission 1 Guide: Why does Misclassification Error fail during tree growth?</h4>
+                        <p id="missionGuideText" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-0.5">
+                            Look at <strong>Module 1's Chord Visualization</strong> below: When a parent node at <span class="mono font-semibold text-sky-400">p = 0.75</span> splits into two children at <span class="mono">p₁ = 0.60</span> and <span class="mono">p₂ = 1.00</span> (a 100% pure leaf!), both children still predict Class 1 ($p > 0.5$). Because Misclassification Error is linear on $[0.5, 1.0]$, the chord lies flat on the curve (<span class="mono text-rose-400">Gain = 0.000</span>). Strictly concave curves (Entropy & Gini) arch above the chord, rewarding the creation of the pure leaf!
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- MODULE 1: INTERACTIVE IMPURITY CURVE & JENSEN'S INEQUALITY PLOTTER -->
+        <!-- ================================================================= -->
+        <section id="module-1" class="scroll-mt-20 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-sky-500">Module 01 • Cost Function Geometry</span>
+                    <h2 class="text-xl sm:text-2xl font-bold">Impurity Curves, Curvature & Jensen's Inequality</h2>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="inline-flex items-center gap-2 text-xs font-medium bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input type="checkbox" id="scaleEntropyToggle" checked class="rounded text-sky-500 focus:ring-sky-500">
+                        <span>Scale Entropy $H(p)/2$ (Match Peak at $0.5$)</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-xs font-medium bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input type="checkbox" id="showChordToggle" checked class="rounded text-sky-500 focus:ring-sky-500">
+                        <span>Show Split Chord (Jensen's Inequality)</span>
+                    </label>
+                    <label class="inline-flex items-center gap-2 text-xs font-medium bg-white dark:bg-slate-800 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 cursor-pointer">
+                        <input type="checkbox" id="showTangentToggle" class="rounded text-sky-500 focus:ring-sky-500">
+                        <span>Show Tangents at $p$</span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left SVG Plotter (7 cols) -->
+                <div class="lg:col-span-7 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div class="flex flex-wrap items-center gap-4 text-xs font-semibold">
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-1 rounded-full bg-sky-400 inline-block"></span>
+                                <span id="entropyLegendLabel">Scaled Entropy $H(p)/2$</span>
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-1 rounded-full bg-emerald-400 inline-block"></span>
+                                Gini Impurity $2p(1-p)$
+                            </span>
+                            <span class="flex items-center gap-1.5">
+                                <span class="w-3 h-1 rounded-full bg-rose-400 inline-block"></span>
+                                Misclassification $1 - \max(p, 1-p)$
+                            </span>
+                        </div>
+                        <span class="text-[11px] text-slate-400 mono">Drag on chart or use sliders</span>
+                    </div>
+
+                    <!-- Interactive SVG Canvas -->
+                    <div class="relative w-full aspect-[16/10] bg-slate-50 dark:bg-slate-900/70 rounded-xl border border-slate-200/70 dark:border-slate-800 overflow-hidden">
+                        <svg id="impuritySvg" viewBox="0 0 640 400" class="w-full h-full cursor-crosshair"></svg>
+                    </div>
+
+                    <!-- Probability Slider Controls -->
+                    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800 space-y-4">
+                        <div>
+                            <div class="flex justify-between text-xs font-medium mb-1">
+                                <span class="text-slate-600 dark:text-slate-300">Parent Node Class-1 Probability ($p = P(Y=1)$):</span>
+                                <span id="pSliderVal" class="mono font-bold text-sky-500 text-sm">p = 0.75</span>
+                            </div>
+                            <input type="range" id="pSlider" min="0.01" max="0.99" step="0.01" value="0.75" class="w-full">
+                        </div>
+
+                        <!-- Chord Split Controls -->
+                        <div id="chordControlsPanel" class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-200/60 dark:border-slate-800/60">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-500 dark:text-slate-400">Left Child $p_L$ (Weight <span id="wLDisplay" class="mono">62%</span>):</span>
+                                    <span id="pLVal" class="mono font-semibold text-indigo-400">0.60</span>
+                                </div>
+                                <input type="range" id="pLSlider" min="0.00" max="1.00" step="0.01" value="0.60" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span class="text-slate-500 dark:text-slate-400">Right Child $p_R$ (Weight <span id="wRDisplay" class="mono">38%</span>):</span>
+                                    <span id="pRVal" class="mono font-semibold text-purple-400">1.00</span>
+                                </div>
+                                <input type="range" id="pRSlider" min="0.00" max="1.00" step="0.01" value="1.00" class="w-full">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Live Telemetry & Mathematical Intuition (5 cols) -->
+                <div class="lg:col-span-5 flex flex-col gap-4">
+                    <!-- Exact Values & Curvature Table -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Live Cost & Curvature Telemetry</h3>
+                            <span id="activeCurveCriterionPill" class="text-xs font-mono px-2.5 py-0.5 rounded-full bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                                Chord Visualizing: All 3
+                            </span>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs">
+                                <thead>
+                                    <tr class="border-b border-slate-200 dark:border-slate-700 text-slate-400">
+                                        <th class="py-2 font-medium">Criterion</th>
+                                        <th class="py-2 font-medium text-right">Parent $I(p)$</th>
+                                        <th class="py-2 font-medium text-right">Slope $I'(p)$</th>
+                                        <th class="py-2 font-medium text-right">Curvature $|I''(p)|$</th>
+                                        <th class="py-2 font-medium text-right">Chord Gain $\Delta I$</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-200/60 dark:divide-slate-800 mono">
+                                    <tr>
+                                        <td class="py-2.5 font-sans font-semibold text-sky-500 flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-sky-400"></span>
+                                            Entropy (ID3)
+                                        </td>
+                                        <td id="tblEntropyVal" class="py-2.5 text-right font-semibold">0.811</td>
+                                        <td id="tblEntropySlope" class="py-2.5 text-right text-slate-400">-0.792</td>
+                                        <td id="tblEntropyCurv" class="py-2.5 text-right text-sky-400">3.847</td>
+                                        <td id="tblEntropyGain" class="py-2.5 text-right font-bold text-emerald-400">+0.199</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 font-sans font-semibold text-emerald-500 flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                                            Gini (CART)
+                                        </td>
+                                        <td id="tblGiniVal" class="py-2.5 text-right font-semibold">0.375</td>
+                                        <td id="tblGiniSlope" class="py-2.5 text-right text-slate-400">-1.000</td>
+                                        <td id="tblGiniCurv" class="py-2.5 text-right text-emerald-400">4.000</td>
+                                        <td id="tblGiniGain" class="py-2.5 text-right font-bold text-emerald-400">+0.075</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="py-2.5 font-sans font-semibold text-rose-500 flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-rose-400"></span>
+                                            Misclass Error
+                                        </td>
+                                        <td id="tblMisclassVal" class="py-2.5 text-right font-semibold">0.250</td>
+                                        <td id="tblMisclassSlope" class="py-2.5 text-right text-slate-400">-1.000</td>
+                                        <td id="tblMisclassCurv" class="py-2.5 text-right text-rose-400">0.000</td>
+                                        <td id="tblMisclassGain" class="py-2.5 text-right font-bold text-rose-400">0.000</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Quick Preset Buttons for Chord -->
+                        <div class="mt-4 pt-3 border-t border-slate-200 dark:border-slate-800 flex flex-wrap gap-2">
+                            <button onclick="setChordPreset(0.75, 0.60, 1.00)" class="text-xs px-3 py-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-500 font-medium border border-sky-500/20 transition">
+                                Same-Side Split ($p_L=0.6, p_R=1.0$) → Misclass Gain = 0!
+                            </button>
+                            <button onclick="setChordPreset(0.50, 0.20, 0.80)" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium transition">
+                                Symmetric Cross-Peak Split ($p_L=0.2, p_R=0.8$)
+                            </button>
+                            <button onclick="setChordPreset(0.85, 0.78, 0.99)" class="text-xs px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 font-medium transition">
+                                Near-Pure Tail ($p=0.85 \to 0.99$)
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Mathematical Deep Dive Card: Why Strict Concavity Matters -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex-1 flex flex-col justify-between space-y-3">
+                        <div>
+                            <span class="text-[11px] font-bold uppercase tracking-wider text-indigo-400">Mathematical Intuition</span>
+                            <h3 class="text-base font-bold mt-0.5">Why Strictly Concave Functions Drive Purer Splits</h3>
+                            <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-2 leading-relaxed">
+                                Any valid binary split partitions a parent node with probability $p$ into left and right children $(p_L, p_R)$ with weights $w_L + w_R = 1$ such that the expectation is conserved:
+                            </p>
+                            <div class="my-2 p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 mono text-xs text-center border border-slate-200 dark:border-slate-800">
+                                $p = w_L p_L + w_R p_R$ &nbsp;⟹&nbsp; $\Delta I = I(p) - \big[w_L I(p_L) + w_R I(p_R)\big]$
+                            </div>
+                            <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                Geometrically, $w_L I(p_L) + w_R I(p_R)$ is the height of the <strong>straight secant chord</strong> connecting $(p_L, I(p_L))$ and $(p_R, I(p_R))$ evaluated at $p$. By <strong>Jensen's Inequality</strong>:
+                            </p>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                            <div class="p-3 rounded-xl bg-sky-500/5 border border-sky-500/20">
+                                <div class="font-bold text-sky-400 mb-1">Shannon Entropy</div>
+                                <div class="mono text-[11px] text-slate-400 mb-1">$|H''(p)| = \frac{1}{p(1-p)\ln 2}$</div>
+                                <p class="text-slate-500 dark:text-slate-400">Curvature explodes to $\infty$ near $p \to 0, 1$. Aggressively rewards isolating small pure buckets.</p>
+                            </div>
+                            <div class="p-3 rounded-xl bg-emerald-500/5 border border-emerald-500/20">
+                                <div class="font-bold text-emerald-400 mb-1">Gini Impurity</div>
+                                <div class="mono text-[11px] text-slate-400 mb-1">$|G''(p)| = 4$ (Constant)</div>
+                                <p class="text-slate-500 dark:text-slate-400">First-order Taylor approximation of Entropy ($\ln p \approx p-1$). Uniformly concave parabola.</p>
+                            </div>
+                            <div class="p-3 rounded-xl bg-rose-500/5 border border-rose-500/20">
+                                <div class="font-bold text-rose-400 mb-1">Misclass Error</div>
+                                <div class="mono text-[11px] text-slate-400 mb-1">$|E''(p)| = 0$ ($p \neq 0.5$)</div>
+                                <p class="text-slate-500 dark:text-slate-400">Piecewise linear. Zero gain unless children cross the $p=0.5$ majority boundary!</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- MODULE 2: 2D FEATURE SPACE & HIGH-CARDINALITY SPLIT SIMULATOR     -->
+        <!-- ================================================================= -->
+        <section id="module-2" class="scroll-mt-20 space-y-4">
+            <div class="flex flex-col md:flex-row md:items-end justify-between gap-3">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-emerald-500">Module 02 • Interactive Split & Feature Selection Explorer</span>
+                    <h2 class="text-xl sm:text-2xl font-bold">CART vs. ID3 vs. C4.5 (Gain Ratio & High-Cardinality Trap)</h2>
+                </div>
+
+                <!-- Scenario Preset Switcher -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="loadScenario('continuous')" id="scen-continuous" class="scenario-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500 text-white shadow-sm transition">
+                        1. Standard Continuous Split
+                    </button>
+                    <button onclick="loadScenario('concavity_trap')" id="scen-concavity_trap" class="scenario-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-400 transition">
+                        2. Strict Concavity Trap (Misclass = 0)
+                    </button>
+                    <button onclick="loadScenario('cardinality_trap')" id="scen-cardinality_trap" class="scenario-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-400 transition">
+                        3. High-Cardinality Trap (ID3 vs C4.5)
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Left Interactive Feature Space / Bucket Visualizer (7 cols) -->
+                <div class="lg:col-span-7 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col justify-between">
+                    
+                    <!-- Top Header inside Canvas Card -->
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                        <div>
+                            <h3 id="simCanvasTitle" class="font-bold text-base">2D Feature Space: Drag the Split Threshold $x = t$</h3>
+                            <p id="simCanvasSubtitle" class="text-xs text-slate-500 dark:text-slate-400">Blue Circles = Class 1 ($y=1$) • Amber Triangles = Class 0 ($y=0$)</p>
+                        </div>
+                        <div id="cardinalityToggleGroup" class="hidden items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                            <button onclick="setCardinalityCandidate('clean')" id="cand-clean-btn" class="px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500 text-white transition">
+                                Feature A: Clean Binary (k=2)
+                            </button>
+                            <button onclick="setCardinalityCandidate('noisy')" id="cand-noisy-btn" class="px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-white transition">
+                                Feature B: Noisy ID Buckets
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Interactive SVG Scatter / Bucket View -->
+                    <div class="relative w-full aspect-[16/10] bg-slate-50 dark:bg-slate-900/70 rounded-xl border border-slate-200/70 dark:border-slate-800 overflow-hidden">
+                        <svg id="splitSimSvg" viewBox="0 0 640 390" class="w-full h-full"></svg>
+                    </div>
+
+                    <!-- Bottom Controls: Threshold Slider OR Bucket Count k Slider -->
+                    <div class="mt-4 pt-4 border-t border-slate-200 dark:border-slate-800">
+                        <!-- Continuous Threshold Control -->
+                        <div id="continuousControls" class="space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                    Candidate Split Threshold ($x \le t$): <span id="threshValDisplay" class="mono font-bold text-sky-400">t = 4.80</span>
+                                </span>
+                                <div class="flex items-center gap-2">
+                                    <button onclick="snapToOptimal('entropy')" class="text-[11px] px-2.5 py-1 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 font-medium transition">
+                                        Snap to Max Info Gain (ID3)
+                                    </button>
+                                    <button onclick="snapToOptimal('gini')" class="text-[11px] px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 font-medium transition">
+                                        Snap to Max Gini Gain (CART)
+                                    </button>
+                                    <button onclick="snapToOptimal('gainratio')" class="text-[11px] px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 font-medium transition">
+                                        Snap to Max Gain Ratio (C4.5)
+                                    </button>
+                                </div>
+                            </div>
+                            <input type="range" id="thresholdSlider" min="0.5" max="9.5" step="0.05" value="4.80" class="w-full">
+                        </div>
+
+                        <!-- High-Cardinality Bucket Control -->
+                        <div id="cardinalityControls" class="hidden space-y-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <span class="text-xs font-medium text-slate-600 dark:text-slate-300">
+                                    Number of Categorical Buckets ($k$) in Noisy Feature B (e.g. "Day of Month / User ID"):
+                                    <span id="bucketCountDisplay" class="mono font-bold text-amber-400">k = 10 buckets</span>
+                                </span>
+                                <button onclick=" regenerateNoisyDataset()" class="text-[11px] px-2.5 py-1 rounded-lg bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 font-medium transition">
+                                    Reshuffle Random Bucket Assignments
+                                </button>
+                            </div>
+                            <input type="range" id="bucketCountSlider" min="2" max="24" step="2" value="10" class="w-full">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Real-time Calculation Bar & Winner Comparison (5 cols) -->
+                <div class="lg:col-span-5 flex flex-col gap-4">
+                    <!-- Real-time Metrics Breakdown Card -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h3 class="font-bold text-sm uppercase tracking-wider text-slate-500 dark:text-slate-400">Real-Time Split Metrics</h3>
+                                <p id="activeSplitSummaryLabel" class="text-xs text-slate-400 mt-0.5">Evaluating binary partition at threshold $t = 4.80$</p>
+                            </div>
+                            <span id="parentDistPill" class="mono text-xs px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 font-semibold">
+                                N = 24 (15 Pos, 9 Neg)
+                            </span>
+                        </div>
+
+                        <!-- Metric Bars -->
+                        <div class="space-y-3 text-xs">
+                            <!-- Information Gain (ID3) -->
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-semibold text-sky-400">ID3 • Information Gain $\text{IG}(Y, X)$</span>
+                                    <span id="metricIGVal" class="mono font-bold text-sm text-sky-400">0.384 bits</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
+                                    <div id="barIG" class="h-full bg-sky-500 rounded-full transition-all duration-150" style="width: 45%"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-400 mono">
+                                    <span>Parent $H(Y)$: <strong id="metricParentH" class="text-slate-300">0.954</strong></span>
+                                    <span>Child $H(Y|X)$: <strong id="metricChildH" class="text-slate-300">0.570</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Intrinsic Info & C4.5 Gain Ratio -->
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-semibold text-purple-400">C4.5 • Gain Ratio $\text{IG} / \text{SplitInfo}(X)$</span>
+                                    <span id="metricGainRatioVal" class="mono font-bold text-sm text-purple-400">0.412</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
+                                    <div id="barGainRatio" class="h-full bg-purple-500 rounded-full transition-all duration-150" style="width: 41%"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-400 mono">
+                                    <span>SplitInfo $H(X)$: <strong id="metricSplitInfo" class="text-amber-400">0.932 bits</strong></span>
+                                    <span>Penalty Factor: <strong id="metricPenaltyFactor" class="text-slate-300">÷ 0.932</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- CART Gini Gain -->
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-semibold text-emerald-400">CART • Gini Impurity Gain $\Delta G$</span>
+                                    <span id="metricGiniGainVal" class="mono font-bold text-sm text-emerald-400">0.215</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
+                                    <div id="barGiniGain" class="h-full bg-emerald-500 rounded-full transition-all duration-150" style="width: 43%"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-400 mono">
+                                    <span>Parent $G(Y)$: <strong id="metricParentG" class="text-slate-300">0.469</strong></span>
+                                    <span>Child $G(Y|X)$: <strong id="metricChildG" class="text-slate-300">0.254</strong></span>
+                                </div>
+                            </div>
+
+                            <!-- Misclassification Error Gain -->
+                            <div class="p-3 rounded-xl bg-slate-50 dark:bg-slate-900/80 border border-slate-200/70 dark:border-slate-800">
+                                <div class="flex justify-between items-center mb-1">
+                                    <span class="font-semibold text-rose-400">Misclassification Error Reduction $\Delta E$</span>
+                                    <span id="metricMisclassGainVal" class="mono font-bold text-sm text-rose-400">0.125</span>
+                                </div>
+                                <div class="w-full h-2 bg-slate-200 dark:bg-slate-800 rounded-full overflow-hidden mb-1.5">
+                                    <div id="barMisclassGain" class="h-full bg-rose-500 rounded-full transition-all duration-150" style="width: 25%"></div>
+                                </div>
+                                <div class="flex justify-between text-[11px] text-slate-400 mono">
+                                    <span>Parent Error: <strong id="metricParentE" class="text-slate-300">0.375</strong></span>
+                                    <span>Child Error: <strong id="metricChildE" class="text-slate-300">0.250</strong></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Scenario Verdict / Algorithm Decision Card -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] font-bold uppercase tracking-wider text-emerald-400">Algorithmic Verdict</span>
+                                <span id="scenarioTagPill" class="text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400">Continuous Threshold</span>
+                            </div>
+                            <h4 id="verdictTitle" class="font-bold text-sm sm:text-base">How ID3, CART, and C4.5 Evaluate This Split</h4>
+                            <p id="verdictExplanation" class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 mt-1.5 leading-relaxed">
+                                Drag the threshold slider or click the "Snap to Max" buttons to compare where each criterion places the decision boundary. Notice that C4.5's Gain Ratio penalizes balanced 50/50 splits because $\text{SplitInfo}(X) = H(w_L, w_R)$ peaks at $1.0$ bit when $w_L = 0.5$, slightly favoring asymmetric pure splits at the edges!
+                            </p>
+                        </div>
+
+                        <!-- High-Cardinality Side-by-Side Comparison Table (Shown prominently in Scenario 3) -->
+                        <div id="cardinalityComparisonBox" class="mt-3 pt-3 border-t border-slate-200 dark:border-slate-800">
+                            <div class="text-xs font-semibold text-slate-400 mb-2">Formula Reference: C4.5 Intrinsic Split Information</div>
+                            <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 mono text-[11px] text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-800">
+                                $\text{SplitInfo}(X) = -\sum_{j=1}^{k} \frac{N_j}{N} \log_2\left(\frac{N_j}{N}\right) \implies \text{GainRatio} = \frac{\text{IG}(Y,X)}{\text{SplitInfo}(X)}$
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================================================= -->
+        <!-- MODULE 3: PROBABILISTIC ML & KL-DIVERGENCE CONNECTION PANEL       -->
+        <!-- ================================================================= -->
+        <section id="module-3" class="scroll-mt-20 space-y-4">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-2">
+                <div>
+                    <span class="text-xs font-bold uppercase tracking-wider text-purple-500">Module 03 • Probabilistic Machine Learning Foundations</span>
+                    <h2 class="text-xl sm:text-2xl font-bold">Decision Trees as Conditional Density Estimators & KL-Divergence</h2>
+                </div>
+                <span class="text-xs text-slate-500 dark:text-slate-400">Based on Murphy's <em>Probabilistic Machine Learning</em> & Information Theory</span>
+            </div>
+
+            <!-- Interactive Probabilistic Leaf Simulator + 3 Guided Pillar Cards -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                <!-- Interactive MLE & KL-Divergence Calculator (5 cols) -->
+                <div class="lg:col-span-5 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm flex flex-col justify-between space-y-4">
+                    <div>
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-purple-400">Interactive Leaf Distribution Sandbox</span>
+                            <span class="mono text-xs px-2 py-0.5 rounded bg-purple-500/10 text-purple-400">Bernoulli / Categorical MLE</span>
+                        </div>
+                        <h3 class="font-bold text-base">Adjust Leaf Sample Counts $(N_1, N_0)$</h3>
+                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                            In Probabilistic ML, a decision tree leaf $m$ does not just output a hard label; it defines a local Maximum Likelihood Categorical distribution $\hat{\theta}_m = N_{m,1} / N_m$.
+                        </p>
+
+                        <!-- Sliders for N1 and N0 -->
+                        <div class="mt-4 space-y-3">
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span>Class 1 Count ($N_1$):</span>
+                                    <span id="mleN1Val" class="mono font-bold text-sky-400">18 samples</span>
+                                </div>
+                                <input type="range" id="mleN1Slider" min="0" max="30" step="1" value="18" class="w-full">
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs mb-1">
+                                    <span>Class 0 Count ($N_0$):</span>
+                                    <span id="mleN0Val" class="mono font-bold text-amber-400">2 samples</span>
+                                </div>
+                                <input type="range" id="mleN0Slider" min="0" max="30" step="1" value="2" class="w-full">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Live Probabilistic Equivalence Readout -->
+                    <div class="p-4 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 space-y-2.5 text-xs mono">
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">MLE Parameter $\hat{p} = N_1 / N$:</span>
+                            <span id="mlePVal" class="font-bold text-sky-400">0.900 (N = 20)</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">Laplace Smoothed $\hat{p}_{\text{MAP}} = \frac{N_1+1}{N+2}$:</span>
+                            <span id="mleLaplaceVal" class="font-bold text-indigo-400">0.864</span>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2">
+                            <span class="text-slate-400">Leaf Shannon Entropy $H(\hat{p})$:</span>
+                            <span id="mleEntropyVal" class="font-bold text-emerald-400">0.469 bits</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-slate-400">KL from Uniform $D_{\text{KL}}(\hat{p} \parallel U)$:</span>
+                            <span id="mleKLUniformVal" class="font-bold text-purple-400">0.531 bits</span>
+                        </div>
+                        <div class="flex justify-between border-t border-slate-200 dark:border-slate-800 pt-2">
+                            <span class="text-slate-400">Negative Log-Likelihood $-\ell(\hat{p})$:</span>
+                            <span id="mleNLLVal" class="font-bold text-amber-400">9.380 bits (= N · H(p̂))</span>
+                        </div>
+                    </div>
+
+                    <div class="text-[11px] text-slate-500 dark:text-slate-400 bg-purple-500/5 border border-purple-500/20 rounded-xl p-3">
+                        <strong>Conservation Identity:</strong> Notice that $H(\hat{p}) + D_{\text{KL}}(\hat{p} \parallel \text{Uniform}) = \log_2(K) = 1.000\text{ bit}$! Minimizing leaf entropy is identical to maximizing the KL-divergence of the leaf distribution away from uniform uncertainty.
+                    </div>
+                </div>
+
+                <!-- 3 Guided Walkthrough Cards (7 cols) -->
+                <div class="lg:col-span-7 grid grid-cols-1 gap-4">
+                    
+                    <!-- Card 1: Leaves as Categorical MLE & NLL = N * H(p) -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-start gap-3.5">
+                            <div class="w-9 h-9 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 flex items-center justify-center font-bold mono shrink-0">
+                                01
+                            </div>
+                            <div class="space-y-1.5">
+                                <h3 class="font-bold text-base">Why ID3 / C4.5 Entropy Minimization = Maximum Likelihood Estimation (MLE)</h3>
+                                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    Suppose a leaf node $m$ contains $N_m$ training points with class counts $N_{m,c}$. If we model the leaf's labels with a Categorical distribution $\theta_m = (\theta_{m,1}, \dots, \theta_{m,C})$, the log-likelihood of the data in leaf $m$ evaluated at the MLE $\hat{\theta}_{m,c} = \frac{N_{m,c}}{N_m}$ is:
+                                </p>
+                                <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 mono text-xs text-sky-400 border border-slate-200 dark:border-slate-800">
+                                    $\ell(\hat{\theta}_m) = \sum_{c=1}^{C} N_{m,c} \log_2 \hat{\theta}_{m,c} = - N_m \sum_{c=1}^{C} \hat{\theta}_{m,c} \log_2 \hat{\theta}_{m,c} = - N_m \, H(\hat{\theta}_m)$
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Therefore, choosing a split that minimizes the weighted child entropy $\sum_{m} \frac{N_m}{N} H(\hat{\theta}_m)$ is <strong>mathematically identical</strong> to greedy minimization of the Negative Log-Likelihood (Cross-Entropy Loss) of a piecewise-constant probabilistic classifier!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 2: Information Gain as Mutual Information & KL-Divergence -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-start gap-3.5">
+                            <div class="w-9 h-9 rounded-xl bg-purple-500/10 text-purple-400 border border-purple-500/20 flex items-center justify-center font-bold mono shrink-0">
+                                02
+                            </div>
+                            <div class="space-y-1.5">
+                                <h3 class="font-bold text-base">Information Gain as Expected KL-Divergence (Posterior vs. Prior)</h3>
+                                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    Before splitting, our prior belief over class $Y$ in the parent node is $P(Y)$. After observing feature split $X=x$, our posterior belief in child $x$ is $P(Y \mid X=x)$. Information Gain is the Mutual Information $I(Y; X)$, which equals the expected <strong>Kullback-Leibler (KL) Divergence</strong> from the prior to the posterior:
+                                </p>
+                                <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 mono text-xs text-purple-400 border border-slate-200 dark:border-slate-800">
+                                    $\text{IG}(Y, X) = H(Y) - H(Y \mid X) = \mathbb{E}_{X}\Big[ D_{\text{KL}}\big( P(Y \mid X) \;\parallel\; P(Y) \big) \Big]$
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Intuition: A split has high Information Gain if and only if knowing which branch $X$ a sample falls into causes a large information-theoretic shift ($D_{\text{KL}}$) from the parent distribution $P(Y)$ to the child distribution $P(Y \mid X)$.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Card 3: Probabilistic Interpretation of Gini Impurity -->
+                    <div class="bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
+                        <div class="flex items-start gap-3.5">
+                            <div class="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center justify-center font-bold mono shrink-0">
+                                03
+                            </div>
+                            <div class="space-y-1.5">
+                                <h3 class="font-bold text-base">Probabilistic Meaning of CART's Gini Impurity: Stochastic Labeling Error</h3>
+                                <p class="text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                                    Instead of deterministic majority voting ($\arg\max_c p_c$, which gives Misclassification Error $1 - \max_c p_c$), imagine a <strong>stochastic classifier</strong> that draws a random label $Y_{\text{pred}} \sim \text{Categorical}(p_1, \dots, p_C)$ according to the leaf's empirical probabilities. What is the probability that a randomly arrived test point $Y_{\text{true}} \sim \text{Categorical}(p_1, \dots, p_C)$ is misclassified?
+                                </p>
+                                <div class="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-900 mono text-xs text-emerald-400 border border-slate-200 dark:border-slate-800">
+                                    $P(Y_{\text{pred}} \neq Y_{\text{true}}) = \sum_{c=1}^{C} p_c (1 - p_c) = 1 - \sum_{c=1}^{C} p_c^2 = \text{Gini}(p)$
+                                </div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400">
+                                    Equivalently, if we encode class $Y \in \{0, 1\}$ and fit a regression tree minimizing <strong>Mean Squared Error (Brier Score)</strong> $\frac{1}{N}\sum_i (y_i - \hat{p})^2$, the variance of a Bernoulli leaf is $\hat{p}(1-\hat{p}) = \frac{1}{2}\text{Gini}(\hat{p})$. Thus, CART Gini splitting is identical to variance reduction on one-hot encoded targets!
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-8 border-t border-slate-200 dark:border-slate-800 text-xs text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div>Interactive Decision Tree Cost Functions Lab • Probabilistic Machine Learning</div>
+        <div class="mono">CART (Breiman 1984) • ID3 (Quinlan 1986) • C4.5 (Quinlan 1993)</div>
+    </footer>
+
+    <!-- ================================================================= -->
+    <!-- COMPLETE INTERACTIVE JAVASCRIPT ENGINE                            -->
+    <!-- ================================================================= -->
+    <script>
+        // -----------------------------------------------------------------
+        // 1. MATHEMATICAL CORE FUNCTIONS
+        // -----------------------------------------------------------------
+        function shannonEntropy(p, scaled = false) {
+            if (p <= 0 || p >= 1) return 0;
+            const h = -(p * Math.log2(p) + (1 - p) * Math.log2(1 - p));
+            return scaled ? h * 0.5 : h;
+        }
+
+        function entropyDerivative(p, scaled = false) {
+            const eps = Math.min(Math.max(p, 1e-4), 1 - 1e-4);
+            const d = Math.log2((1 - eps) / eps);
+            return scaled ? d * 0.5 : d;
+        }
+
+        function entropyCurvature(p, scaled = false) {
+            const eps = Math.min(Math.max(p, 1e-4), 1 - 1e-4);
+            const c = 1 / (eps * (1 - eps) * Math.LN2);
+            return scaled ? c * 0.5 : c;
+        }
+
+        function giniImpurity(p) {
+            if (p <= 0 || p >= 1) return 0;
+            return 2 * p * (1 - p);
+        }
+
+        function giniDerivative(p) {
+            return 2 - 4 * p;
+        }
+
+        function giniCurvature() {
+            return 4.0;
+        }
+
+        function misclassError(p) {
+            if (p <= 0 || p >= 1) return 0;
+            return 1 - Math.max(p, 1 - p);
+        }
+
+        function misclassDerivative(p) {
+            if (Math.abs(p - 0.5) < 1e-3) return 0; // Non-differentiable peak
+            return p < 0.5 ? 1.0 : -1.0;
+        }
+
+        // -----------------------------------------------------------------
+        // 2. MODULE 1 STATE & IMPURITY CURVE SVG RENDERER
+        // -----------------------------------------------------------------
+        const mod1State = {
+            p: 0.75,
+            pL: 0.60,
+            pR: 1.00,
+            scaleEntropy: true,
+            showChord: true,
+            showTangent: false
+        };
+
+        const impuritySvg = document.getElementById('impuritySvg');
+        const pSlider = document.getElementById('pSlider');
+        const pLSlider = document.getElementById('pLSlider');
+        const pRSlider = document.getElementById('pRSlider');
+        const scaleEntropyToggle = document.getElementById('scaleEntropyToggle');
+        const showChordToggle = document.getElementById('showChordToggle');
+        const showTangentToggle = document.getElementById('showTangentToggle');
+
+        function renderImpurityPlot() {
+            const width = 640;
+            const height = 400;
+            const pad = { top: 28, right: 32, bottom: 44, left: 52 };
+            const plotW = width - pad.left - pad.right;
+            const plotH = height - pad.top - pad.bottom;
+
+            const maxY = mod1State.scaleEntropy ? 0.55 : 1.05;
+
+            const toX = (p) => pad.left + p * plotW;
+            const toY = (val) => pad.top + plotH - (val / maxY) * plotH;
+
+            // Enforce valid ordering pL <= p <= pR for the secant chord
+            if (mod1State.pL > mod1State.p) mod1State.pL = Math.max(0, mod1State.p - 0.05);
+            if (mod1State.pR < mod1State.p) mod1State.pR = Math.min(1, mod1State.p + 0.05);
+
+            // Compute weights wL, wR such that wL*pL + wR*pR = p
+            let wL = 0.5, wR = 0.5;
+            const span = mod1State.pR - mod1State.pL;
+            if (span > 1e-5) {
+                wL = (mod1State.pR - mod1State.p) / span;
+                wR = (mod1State.p - mod1State.pL) / span;
+            }
+
+            let svgHTML = '';
+
+            // Grid lines & Axes
+            const yTicks = mod1State.scaleEntropy ? [0, 0.1, 0.2, 0.3, 0.4, 0.5] : [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+            yTicks.forEach(tick => {
+                const y = toY(tick);
+                svgHTML += `
+                    <line x1="${pad.left}" y1="${y}" x2="${width - pad.right}" y2="${y}" stroke="currentColor" class="text-slate-200 dark:text-slate-800" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text x="${pad.left - 8}" y="${y + 4}" text-anchor="end" class="fill-slate-400 text-[11px] mono">${tick.toFixed(1)}</text>
+                `;
+            });
+
+            const xTicks = [0, 0.25, 0.5, 0.75, 1.0];
+            xTicks.forEach(tick => {
+                const x = toX(tick);
+                svgHTML += `
+                    <line x1="${x}" y1="${pad.top}" x2="${x}" y2="${height - pad.bottom}" stroke="currentColor" class="text-slate-200 dark:text-slate-800" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text x="${x}" y="${height - pad.bottom + 18}" text-anchor="middle" class="fill-slate-400 text-[11px] mono">${tick.toFixed(2)}</text>
+                `;
+            });
+
+            // Axis Titles
+            svgHTML += `
+                <text x="${pad.left + plotW / 2}" y="${height - 6}" text-anchor="middle" class="fill-slate-500 dark:fill-slate-400 text-xs font-medium">Class-1 Probability p = P(Y = 1)</text>
+                <text x="14" y="${pad.top + plotH / 2}" text-anchor="middle" transform="rotate(-90 14 ${pad.top + plotH / 2})" class="fill-slate-500 dark:fill-slate-400 text-xs font-medium">Impurity Cost I(p)</text>
+            `;
+
+            // Generate Paths for the 3 Impurity Functions
+            let pathEntropy = '';
+            let pathGini = '';
+            let pathMisclass = '';
+            const steps = 200;
+            for (let i = 0; i <= steps; i++) {
+                const pVal = i / steps;
+                const x = toX(pVal);
+                const yE = toY(shannonEntropy(pVal, mod1State.scaleEntropy));
+                const yG = toY(giniImpurity(pVal));
+                const yM = toY(misclassError(pVal));
+
+                pathEntropy += (i === 0 ? `M ${x} ${yE}` : ` L ${x} ${yE}`);
+                pathGini += (i === 0 ? `M ${x} ${yG}` : ` L ${x} ${yG}`);
+                pathMisclass += (i === 0 ? `M ${x} ${yM}` : ` L ${x} ${yM}`);
+            }
+
+            svgHTML += `<path d="${pathMisclass}" fill="none" stroke="#fb7185" stroke-width="2.5" stroke-linejoin="round"/>`;
+            svgHTML += `<path d="${pathGini}" fill="none" stroke="#34d399" stroke-width="2.75" stroke-linejoin="round"/>`;
+            svgHTML += `<path d="${pathEntropy}" fill="none" stroke="#38bdf8" stroke-width="3" stroke-linejoin="round"/>`;
+
+            // Values at parent p
+            const p = mod1State.p;
+            const xp = toX(p);
+            const valE = shannonEntropy(p, mod1State.scaleEntropy);
+            const valG = giniImpurity(p);
+            const valM = misclassError(p);
+
+            const ypE = toY(valE);
+            const ypG = toY(valG);
+            const ypM = toY(valM);
+
+            // Optional Secant Chords (Jensen's Inequality visualization)
+            let gainE = 0, gainG = 0, gainM = 0;
+            const pL = mod1State.pL;
+            const pR = mod1State.pR;
+            const xL = toX(pL);
+            const xR = toX(pR);
+
+            // Calculate Child Weighted Impurities & Gains
+            const childE = wL * shannonEntropy(pL, mod1State.scaleEntropy) + wR * shannonEntropy(pR, mod1State.scaleEntropy);
+            const childG = wL * giniImpurity(pL) + wR * giniImpurity(pR);
+            const childM = wL * misclassError(pL) + wR * misclassError(pR);
+
+            gainE = Math.max(0, valE - childE);
+            gainG = Math.max(0, valG - childG);
+            gainM = Math.max(0, valM - childM);
+
+            if (mod1State.showChord) {
+                const yLE = toY(shannonEntropy(pL, mod1State.scaleEntropy));
+                const yRE = toY(shannonEntropy(pR, mod1State.scaleEntropy));
+                const yChildE = toY(childE);
+
+                const yLG = toY(giniImpurity(pL));
+                const yRG = toY(giniImpurity(pR));
+                const yChildG = toY(childG);
+
+                const yLM = toY(misclassError(pL));
+                const yRM = toY(misclassError(pR));
+                const yChildM = toY(childM);
+
+                // Vertical guide lines at pL and pR
+                svgHTML += `
+                    <line x1="${xL}" y1="${pad.top}" x2="${xL}" y2="${height - pad.bottom}" stroke="#818cf8" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.7"/>
+                    <line x1="${xR}" y1="${pad.top}" x2="${xR}" y2="${height - pad.bottom}" stroke="#c084fc" stroke-width="1.2" stroke-dasharray="4,4" opacity="0.7"/>
+                    <text x="${xL}" y="${pad.top + 12}" text-anchor="middle" class="fill-indigo-400 text-[10px] mono font-bold">pL=${pL.toFixed(2)}</text>
+                    <text x="${xR}" y="${pad.top + 12}" text-anchor="middle" class="fill-purple-400 text-[10px] mono font-bold">pR=${pR.toFixed(2)}</text>
+                `;
+
+                // Secant Chords for Entropy, Gini, Misclass
+                svgHTML += `
+                    <line x1="${xL}" y1="${yLE}" x2="${xR}" y2="${yRE}" stroke="#38bdf8" stroke-width="1.8" stroke-dasharray="5,4" opacity="0.85"/>
+                    <line x1="${xL}" y1="${yLG}" x2="${xR}" y2="${yRG}" stroke="#34d399" stroke-width="1.8" stroke-dasharray="5,4" opacity="0.85"/>
+                    <line x1="${xL}" y1="${yLM}" x2="${xR}" y2="${yRM}" stroke="#fb7185" stroke-width="1.8" stroke-dasharray="5,4" opacity="0.85"/>
+                `;
+
+                // Highlight Gain Gap Bars at x = p
+                svgHTML += `
+                    <line x1="${xp - 4}" y1="${ypE}" x2="${xp - 4}" y2="${yChildE}" stroke="#38bdf8" stroke-width="4" stroke-linecap="round"/>
+                    <line x1="${xp + 4}" y1="${ypG}" x2="${xp + 4}" y2="${yChildG}" stroke="#34d399" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="${xp}" cy="${yChildE}" r="4" fill="#0f172a" stroke="#38bdf8" stroke-width="2"/>
+                    <circle cx="${xp}" cy="${yChildG}" r="4" fill="#0f172a" stroke="#34d399" stroke-width="2"/>
+                    <circle cx="${xp}" cy="${yChildM}" r="4" fill="#0f172a" stroke="#fb7185" stroke-width="2"/>
+                `;
+            }
+
+            // Optional Tangent Lines at p
+            if (mod1State.showTangent) {
+                const dp = 0.14;
+                const p1 = Math.max(0, p - dp);
+                const p2 = Math.min(1, p + dp);
+
+                const sE = entropyDerivative(p, mod1State.scaleEntropy);
+                const sG = giniDerivative(p);
+                const sM = misclassDerivative(p);
+
+                svgHTML += `
+                    <line x1="${toX(p1)}" y1="${toY(valE + sE * (p1 - p))}" x2="${toX(p2)}" y2="${toY(valE + sE * (p2 - p))}" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="2,2"/>
+                    <line x1="${toX(p1)}" y1="${toY(valG + sG * (p1 - p))}" x2="${toX(p2)}" y2="${toY(valG + sG * (p2 - p))}" stroke="#34d399" stroke-width="1.5" stroke-dasharray="2,2"/>
+                    <line x1="${toX(p1)}" y1="${toY(valM + sM * (p1 - p))}" x2="${toX(p2)}" y2="${toY(valM + sM * (p2 - p))}" stroke="#fb7185" stroke-width="1.5" stroke-dasharray="2,2"/>
+                `;
+            }
+
+            // Vertical cursor line at Parent p
+            svgHTML += `
+                <line x1="${xp}" y1="${pad.top}" x2="${xp}" y2="${height - pad.bottom}" stroke="#94a3b8" stroke-width="1.5"/>
+                <circle cx="${xp}" cy="${ypE}" r="6" fill="#38bdf8" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="${xp}" cy="${ypG}" r="6" fill="#34d399" stroke="#ffffff" stroke-width="2"/>
+                <circle cx="${xp}" cy="${ypM}" r="6" fill="#fb7185" stroke="#ffffff" stroke-width="2"/>
+            `;
+
+            impuritySvg.innerHTML = svgHTML;
+
+            // Update DOM UI Numbers
+            document.getElementById('pSliderVal').textContent = `p = ${p.toFixed(2)}`;
+            document.getElementById('pLVal').textContent = pL.toFixed(2);
+            document.getElementById('pRVal').textContent = pR.toFixed(2);
+            document.getElementById('wLDisplay').textContent = `${Math.round(wL * 100)}%`;
+            document.getElementById('wRDisplay').textContent = `${Math.round(wR * 100)}%`;
+
+            // Update Telemetry Table (always show raw unscaled Entropy option or clearly labeled)
+            const rawScaleFactor = mod1State.scaleEntropy ? 1 : 1;
+            document.getElementById('entropyLegendLabel').textContent = mod1State.scaleEntropy ? 'Scaled Entropy H(p)/2' : 'Raw Entropy H(p) [bits]';
+
+            document.getElementById('tblEntropyVal').textContent = valE.toFixed(3);
+            document.getElementById('tblEntropySlope').textContent = entropyDerivative(p, mod1State.scaleEntropy).toFixed(3);
+            document.getElementById('tblEntropyCurv').textContent = entropyCurvature(p, mod1State.scaleEntropy).toFixed(3);
+            document.getElementById('tblEntropyGain').textContent = `+${gainE.toFixed(3)}`;
+
+            document.getElementById('tblGiniVal').textContent = valG.toFixed(3);
+            document.getElementById('tblGiniSlope').textContent = giniDerivative(p).toFixed(3);
+            document.getElementById('tblGiniCurv').textContent = giniCurvature().toFixed(3);
+            document.getElementById('tblGiniGain').textContent = `+${gainG.toFixed(3)}`;
+
+            document.getElementById('tblMisclassVal').textContent = valM.toFixed(3);
+            document.getElementById('tblMisclassSlope').textContent = misclassDerivative(p).toFixed(3);
+            document.getElementById('tblMisclassCurv').textContent = '0.000';
+            const misGainEl = document.getElementById('tblMisclassGain');
+            misGainEl.textContent = gainM > 1e-4 ? `+${gainM.toFixed(3)}` : '0.000';
+            misGainEl.className = gainM > 1e-4
+                ? 'py-2.5 text-right font-bold text-emerald-400'
+                : 'py-2.5 text-right font-bold text-rose-400';
+        }
+
+        // Event Listeners for Module 1
+        pSlider.addEventListener('input', (e) => {
+            mod1State.p = parseFloat(e.target.value);
+            if (mod1State.pL > mod1State.p) {
+                mod1State.pL = Math.max(0, +(mod1State.p - 0.1).toFixed(2));
+                pLSlider.value = mod1State.pL;
+            }
+            if (mod1State.pR < mod1State.p) {
+                mod1State.pR = Math.min(1, +(mod1State.p + 0.1).toFixed(2));
+                pRSlider.value = mod1State.pR;
+            }
+            renderImpurityPlot();
+        });
+
+        pLSlider.addEventListener('input', (e) => {
+            mod1State.pL = Math.min(mod1State.p, parseFloat(e.target.value));
+            e.target.value = mod1State.pL;
+            renderImpurityPlot();
+        });
+
+        pRSlider.addEventListener('input', (e) => {
+            mod1State.pR = Math.max(mod1State.p, parseFloat(e.target.value));
+            e.target.value = mod1State.pR;
+            renderImpurityPlot();
+        });
+
+        scaleEntropyToggle.addEventListener('change', (e) => {
+            mod1State.scaleEntropy = e.target.checked;
+            renderImpurityPlot();
+        });
+
+        showChordToggle.addEventListener('change', (e) => {
+            mod1State.showChord = e.target.checked;
+            renderImpurityPlot();
+        });
+
+        showTangentToggle.addEventListener('change', (e) => {
+            mod1State.showTangent = e.target.checked;
+            renderImpurityPlot();
+        });
+
+        // Allow dragging directly inside Module 1 SVG
+        let isDraggingMod1 = false;
+        function handleMod1Pointer(e) {
+            const rect = impuritySvg.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const relX = (clientX - rect.left) / rect.width * 640;
+            const padLeft = 52, plotW = 640 - 52 - 32;
+            const newP = Math.min(0.99, Math.max(0.01, (relX - padLeft) / plotW));
+            mod1State.p = +newP.toFixed(2);
+            pSlider.value = mod1State.p;
+            if (mod1State.pL > mod1State.p) {
+                mod1State.pL = Math.max(0, +(mod1State.p - 0.12).toFixed(2));
+                pLSlider.value = mod1State.pL;
+            }
+            if (mod1State.pR < mod1State.p) {
+                mod1State.pR = Math.min(1, +(mod1State.p + 0.12).toFixed(2));
+                pRSlider.value = mod1State.pR;
+            }
+            renderImpurityPlot();
+        }
+
+        impuritySvg.addEventListener('mousedown', (e) => { isDraggingMod1 = true; handleMod1Pointer(e); });
+        window.addEventListener('mousemove', (e) => { if (isDraggingMod1) handleMod1Pointer(e); });
+        window.addEventListener('mouseup', () => { isDraggingMod1 = false; });
+        impuritySvg.addEventListener('touchstart', (e) => { isDraggingMod1 = true; handleMod1Pointer(e); }, { passive: true });
+        impuritySvg.addEventListener('touchmove', (e) => { if (isDraggingMod1) handleMod1Pointer(e); }, { passive: true });
+        window.addEventListener('touchend', () => { isDraggingMod1 = false; });
+
+        function setChordPreset(p, pL, pR) {
+            mod1State.p = p;
+            mod1State.pL = pL;
+            mod1State.pR = pR;
+            mod1State.showChord = true;
+            showChordToggle.checked = true;
+            pSlider.value = p;
+            pLSlider.value = pL;
+            pRSlider.value = pR;
+            renderImpurityPlot();
+        }
+
+        // -----------------------------------------------------------------
+        // 3. MODULE 2: 2D FEATURE SPACE & HIGH-CARDINALITY SIMULATOR
+        // -----------------------------------------------------------------
+        const mod2State = {
+            scenario: 'continuous', // 'continuous' | 'concavity_trap' | 'cardinality_trap'
+            threshold: 4.80,
+            cardinalityCandidate: 'noisy', // 'clean' | 'noisy'
+            numBuckets: 10,
+            points: [],
+            noisyBuckets: []
+        };
+
+        // Curated Datasets for Scenarios 1, 2, and 3
+        const datasets = {
+            // Scenario 1: Standard Continuous Split where Gini, Entropy, and Gain Ratio have slightly different optimal thresholds
+            continuous: [
+                // Pure-ish left cluster of Class 1 (Blue)
+                { x: 1.1, y: 2.2, c: 1 }, { x: 1.4, y: 6.8, c: 1 }, { x: 1.8, y: 4.1, c: 1 },
+                { x: 2.1, y: 7.9, c: 1 }, { x: 2.4, y: 3.0, c: 1 }, { x: 2.7, y: 5.5, c: 1 },
+                { x: 3.1, y: 2.6, c: 1 }, { x: 3.4, y: 8.2, c: 1 },
+                // Transition overlap zone (x between 3.6 and 6.2)
+                { x: 3.8, y: 6.1, c: 0 }, { x: 4.1, y: 3.8, c: 1 }, { x: 4.4, y: 7.2, c: 1 },
+                { x: 4.6, y: 2.4, c: 1 }, { x: 5.0, y: 5.0, c: 0 }, { x: 5.3, y: 7.7, c: 1 },
+                { x: 5.6, y: 3.3, c: 0 }, { x: 5.9, y: 6.4, c: 1 },
+                // Right cluster mostly Class 0 (Amber)
+                { x: 6.3, y: 2.9, c: 0 }, { x: 6.7, y: 7.1, c: 0 }, { x: 7.1, y: 4.5, c: 0 },
+                { x: 7.5, y: 8.0, c: 0 }, { x: 7.9, y: 2.1, c: 0 }, { x: 8.3, y: 5.8, c: 0 },
+                { x: 8.8, y: 3.7, c: 0 }, { x: 9.2, y: 6.9, c: 0 }
+            ],
+            // Scenario 2: Strict Concavity Trap
+            // Total: 15 Class 1 (Blue), 5 Class 0 (Amber) -> Parent p = 0.75
+            // Left of t = 4.5: 6 Class 1, 0 Class 0 (100% PURE Class 1!)
+            // Right of t = 4.5: 9 Class 1, 5 Class 0 (p_R = 9/14 = 0.643 -> STILL Majority Class 1!)
+            // Misclassification error before split = 5/20 = 0.25. After split = 0 + 5/20 = 0.25 -> Misclass Gain = 0.000!
+            concavity_trap: [
+                // Pure Left Region (x < 4.5): 6 Class 1 points
+                { x: 1.2, y: 3.0, c: 1 }, { x: 1.7, y: 7.2, c: 1 }, { x: 2.3, y: 4.8, c: 1 },
+                { x: 2.9, y: 2.5, c: 1 }, { x: 3.5, y: 6.7, c: 1 }, { x: 4.0, y: 4.1, c: 1 },
+                // Mixed Right Region (x > 4.5): 9 Class 1 points + 5 Class 0 points
+                { x: 5.1, y: 7.8, c: 1 }, { x: 5.3, y: 2.3, c: 0 }, { x: 5.7, y: 5.5, c: 1 },
+                { x: 6.0, y: 8.3, c: 0 }, { x: 6.3, y: 3.9, c: 1 }, { x: 6.6, y: 6.8, c: 1 },
+                { x: 7.0, y: 2.7, c: 0 }, { x: 7.3, y: 5.1, c: 1 }, { x: 7.7, y: 7.9, c: 1 },
+                { x: 8.0, y: 3.4, c: 0 }, { x: 8.4, y: 6.2, c: 1 }, { x: 8.7, y: 2.1, c: 1 },
+                { x: 9.0, y: 7.4, c: 0 }, { x: 9.3, y: 4.6, c: 1 }
+            ]
+        };
+
+        const splitSimSvg = document.getElementById('splitSimSvg');
+        const thresholdSlider = document.getElementById('thresholdSlider');
+        const bucketCountSlider = document.getElementById('bucketCountSlider');
+
+        function generateNoisyBuckets(k) {
+            // Create 24 samples (12 Pos, 12 Neg)
+            const totalN = 24;
+            const samples = [];
+            for (let i = 0; i < totalN; i++) {
+                samples.push(i < 12 ? 1 : 0);
+            }
+            // Deterministic pseudo-random shuffle so it looks natural
+            const buckets = Array.from({ length: k }, () => ({ pos: 0, neg: 0 }));
+            samples.forEach((label, idx) => {
+                const bIdx = (idx * 7 + (label ? 3 : 1)) % k;
+                if (label === 1) buckets[bIdx].pos++;
+                else buckets[bIdx].neg++;
+            });
+            return buckets;
+        }
+
+        function regenerateNoisyDataset() {
+            const k = mod2State.numBuckets;
+            const buckets = Array.from({ length: k }, () => ({ pos: 0, neg: 0 }));
+            for (let i = 0; i < 24; i++) {
+                const label = i < 12 ? 1 : 0;
+                const bIdx = Math.floor(Math.random() * k);
+                if (label === 1) buckets[bIdx].pos++;
+                else buckets[bIdx].neg++;
+            }
+            mod2State.noisyBuckets = buckets;
+            renderModule2();
+        }
+
+        function evaluateSplitMetrics(buckets) {
+            let totalPos = 0, totalNeg = 0;
+            buckets.forEach(b => {
+                totalPos += b.pos;
+                totalNeg += b.neg;
+            });
+            const totalN = totalPos + totalNeg;
+            const parentP = totalN > 0 ? totalPos / totalN : 0.5;
+
+            const parentH = shannonEntropy(parentP, false);
+            const parentG = giniImpurity(parentP);
+            const parentE = misclassError(parentP);
+
+            let childH = 0, childG = 0, childE = 0, splitInfo = 0;
+
+            buckets.forEach(b => {
+                const n = b.pos + b.neg;
+                if (n > 0) {
+                    const w = n / totalN;
+                    const p = b.pos / n;
+                    childH += w * shannonEntropy(p, false);
+                    childG += w * giniImpurity(p);
+                    childE += w * misclassError(p);
+                    splitInfo -= w * Math.log2(w);
+                }
+            });
+
+            const ig = Math.max(0, parentH - childH);
+            const giniGain = Math.max(0, parentG - childG);
+            const misclassGain = Math.max(0, parentE - childE);
+            const gainRatio = splitInfo > 1e-5 ? ig / splitInfo : 0;
+
+            return {
+                totalN, totalPos, totalNeg,
+                parentH, childH, ig,
+                splitInfo, gainRatio,
+                parentG, childG, giniGain,
+                parentE, childE, misclassGain
+            };
+        }
+
+        function snapToOptimal(criterion) {
+            if (mod2State.scenario === 'cardinality_trap') return;
+            const pts = mod2State.points;
+            let bestT = 4.5;
+            let bestScore = -1;
+
+            for (let t = 0.8; t <= 9.2; t += 0.05) {
+                const left = { pos: 0, neg: 0 };
+                const right = { pos: 0, neg: 0 };
+                pts.forEach(pt => {
+                    if (pt.x <= t) { if (pt.c === 1) left.pos++; else left.neg++; }
+                    else { if (pt.c === 1) right.pos++; else right.neg++; }
+                });
+                const m = evaluateSplitMetrics([left, right]);
+                let score = m.ig;
+                if (criterion === 'gini') score = m.giniGain;
+                if (criterion === 'gainratio') score = m.gainRatio;
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    bestT = t;
+                }
+            }
+            mod2State.threshold = +bestT.toFixed(2);
+            thresholdSlider.value = mod2State.threshold;
+            renderModule2();
+        }
+
+        function loadScenario(scen) {
+            mod2State.scenario = scen;
+            document.querySelectorAll('.scenario-btn').forEach(btn => {
+                btn.className = 'scenario-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-sky-400 transition';
+            });
+            const activeBtn = document.getElementById(`scen-${scen}`);
+            if (activeBtn) {
+                activeBtn.className = 'scenario-btn px-3.5 py-2 rounded-xl text-xs font-semibold bg-sky-500 text-white shadow-sm transition';
+            }
+
+            const contControls = document.getElementById('continuousControls');
+            const cardControls = document.getElementById('cardinalityControls');
+            const cardToggleGrp = document.getElementById('cardinalityToggleGroup');
+
+            if (scen === 'continuous') {
+                mod2State.points = datasets.continuous;
+                mod2State.threshold = 4.80;
+                thresholdSlider.value = 4.80;
+                contControls.classList.remove('hidden');
+                cardControls.classList.add('hidden');
+                cardToggleGrp.classList.add('hidden');
+                cardToggleGrp.classList.remove('flex');
+                document.getElementById('simCanvasTitle').textContent = '2D Feature Space: Drag the Split Threshold x = t';
+                document.getElementById('simCanvasSubtitle').textContent = 'Blue Circles = Class 1 (y=1) • Amber Triangles = Class 0 (y=0)';
+                document.getElementById('scenarioTagPill').textContent = 'Standard Continuous';
+                document.getElementById('verdictTitle').textContent = 'Comparing ID3, CART & C4.5 on a Continuous Split';
+                document.getElementById('verdictExplanation').innerHTML =
+                    'Click the <strong>Snap to Max</strong> buttons below the chart! Notice how <strong>ID3 (Info Gain)</strong> and <strong>CART (Gini)</strong> prefer thresholds near the middle ($t \\approx 3.6 - 6.1$), whereas <strong>C4.5 (Gain Ratio)</strong> prefers an extreme threshold ($t \\approx 3.5$) that isolates a 100% pure left node with small SplitInfo!';
+            } else if (scen === 'concavity_trap') {
+                mod2State.points = datasets.concavity_trap;
+                mod2State.threshold = 4.50;
+                thresholdSlider.value = 4.50;
+                contControls.classList.remove('hidden');
+                cardControls.classList.add('hidden');
+                cardToggleGrp.classList.add('hidden');
+                cardToggleGrp.classList.remove('flex');
+                document.getElementById('simCanvasTitle').textContent = 'Strict Concavity Trap: Both Children Predict Class 1!';
+                document.getElementById('simCanvasSubtitle').textContent = 'At t = 4.50: Left Child is 6/6 Pure Class 1 (pL=1.0), Right Child is 9/14 Class 1 (pR=0.64)';
+                document.getElementById('scenarioTagPill').textContent = 'Concavity Trap';
+                document.getElementById('verdictTitle').textContent = 'Why Misclassification Error Gives 0.000 Gain Here';
+                document.getElementById('verdictExplanation').innerHTML =
+                    'At $t = 4.50$, the left region is <strong>100% pure Class 1 (6 Pos, 0 Neg)</strong>, while the right region has 9 Pos and 5 Neg ($p_R = 0.643 > 0.5$). Because both children still predict majority Class 1, total misclassifications remain 5/20 before and after! <strong>Misclassification Gain = 0.000</strong>, yet <strong>ID3 (+0.236 bits)</strong> and <strong>CART (+0.080)</strong> strongly reward isolating the pure left leaf.';
+            } else if (scen === 'cardinality_trap') {
+                mod2State.numBuckets = 10;
+                bucketCountSlider.value = 10;
+                mod2State.noisyBuckets = generateNoisyBuckets(10);
+                mod2State.cardinalityCandidate = 'noisy';
+                updateCardinalityCandidateButtons();
+                contControls.classList.add('hidden');
+                cardControls.classList.remove('hidden');
+                cardToggleGrp.classList.remove('hidden');
+                cardToggleGrp.classList.add('flex');
+                document.getElementById('simCanvasTitle').textContent = 'High-Cardinality Trap: Clean Binary vs. Noisy Multi-Bucket Feature';
+                document.getElementById('simCanvasSubtitle').textContent = 'Compare Feature A (Clean 2-way split) vs. Feature B (Noisy k-way split like User ID)';
+                document.getElementById('scenarioTagPill').textContent = 'ID3 vs C4.5';
+                document.getElementById('verdictTitle').textContent = 'How C4.5 Gain Ratio Defeats High-Cardinality Overfitting';
+                document.getElementById('verdictExplanation').innerHTML =
+                    'Increase the bucket slider $k$ up to 20+: As $k$ grows, each bucket holds only 1–2 random points, becoming artificially pure! <strong>ID3 Information Gain</strong> climbs toward $1.000\\text{ bit}$ (overfitting to noise). <strong>C4.5</strong> divides by $\\text{SplitInfo}(X) = \\log_2(k) \\approx 4.3\\text{ bits}$, crushing the noisy feature\'s Gain Ratio so the Clean Binary Feature wins!';
+            }
+
+            renderModule2();
+        }
+
+        function setCardinalityCandidate(cand) {
+            mod2State.cardinalityCandidate = cand;
+            updateCardinalityCandidateButtons();
+            renderModule2();
+        }
+
+        function updateCardinalityCandidateButtons() {
+            const cleanBtn = document.getElementById('cand-clean-btn');
+            const noisyBtn = document.getElementById('cand-noisy-btn');
+            if (mod2State.cardinalityCandidate === 'clean') {
+                cleanBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-sky-500 text-white transition';
+                noisyBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-sky-400 transition';
+            } else {
+                noisyBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500 text-white transition';
+                cleanBtn.className = 'px-2.5 py-1 rounded-lg text-xs font-semibold text-slate-500 dark:text-slate-400 hover:text-sky-400 transition';
+            }
+        }
+
+        function renderModule2() {
+            if (mod2State.scenario === 'cardinality_trap') {
+                renderCardinalityView();
+            } else {
+                renderContinuousScatterView();
+            }
+        }
+
+        function renderContinuousScatterView() {
+            const width = 640, height = 390;
+            const pad = { top: 34, right: 28, bottom: 42, left: 44 };
+            const plotW = width - pad.left - pad.right;
+            const plotH = height - pad.top - pad.bottom;
+
+            const toX = (xVal) => pad.left + (xVal / 10) * plotW;
+            const toY = (yVal) => pad.top + plotH - (yVal / 10) * plotH;
+
+            const t = mod2State.threshold;
+            const xt = toX(t);
+            const pts = mod2State.points;
+
+            const leftBucket = { pos: 0, neg: 0 };
+            const rightBucket = { pos: 0, neg: 0 };
+            pts.forEach(pt => {
+                if (pt.x <= t) { if (pt.c === 1) leftBucket.pos++; else leftBucket.neg++; }
+                else { if (pt.c === 1) rightBucket.pos++; else rightBucket.neg++; }
+            });
+
+            const metrics = evaluateSplitMetrics([leftBucket, rightBucket]);
+
+            let svgHTML = '';
+
+            // Left & Right Shaded Decision Regions
+            const leftP = (leftBucket.pos + leftBucket.neg) > 0 ? leftBucket.pos / (leftBucket.pos + leftBucket.neg) : 0.5;
+            const rightP = (rightBucket.pos + rightBucket.neg) > 0 ? rightBucket.pos / (rightBucket.pos + rightBucket.neg) : 0.5;
+
+            const leftColor = leftP >= 0.5 ? 'rgba(56, 189, 248, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+            const rightColor = rightP >= 0.5 ? 'rgba(56, 189, 248, 0.08)' : 'rgba(245, 158, 11, 0.08)';
+
+            svgHTML += `
+                <rect x="${pad.left}" y="${pad.top}" width="${Math.max(0, xt - pad.left)}" height="${plotH}" fill="${leftColor}"/>
+                <rect x="${xt}" y="${pad.top}" width="${Math.max(0, width - pad.right - xt)}" height="${plotH}" fill="${rightColor}"/>
+            `;
+
+            // Grid lines
+            for (let gx = 0; gx <= 10; gx += 2) {
+                const x = toX(gx);
+                svgHTML += `
+                    <line x1="${x}" y1="${pad.top}" x2="${x}" y2="${height - pad.bottom}" stroke="currentColor" class="text-slate-200 dark:text-slate-800" stroke-width="1" stroke-dasharray="3,3"/>
+                    <text x="${x}" y="${height - pad.bottom + 18}" text-anchor="middle" class="fill-slate-400 text-[11px] mono">${gx}</text>
+                `;
+            }
+
+            // Region Header Badges
+            const leftN = leftBucket.pos + leftBucket.neg;
+            const rightN = rightBucket.pos + rightBucket.neg;
+            svgHTML += `
+                <text x="${pad.left + Math.max(45, (xt - pad.left) / 2)}" y="${pad.top + 18}" text-anchor="middle" class="fill-sky-400 text-xs font-bold mono">
+                    Left: ${leftBucket.pos} Pos, ${leftBucket.neg} Neg (p=${leftN ? (leftBucket.pos/leftN).toFixed(2) : '0.00'})
+                </text>
+                <text x="${xt + Math.max(45, (width - pad.right - xt) / 2)}" y="${pad.top + 18}" text-anchor="middle" class="fill-indigo-400 text-xs font-bold mono">
+                    Right: ${rightBucket.pos} Pos, ${rightBucket.neg} Neg (p=${rightN ? (rightBucket.pos/rightN).toFixed(2) : '0.00'})
+                </text>
+            `;
+
+            // Draw Data Points
+            pts.forEach(pt => {
+                const cx = toX(pt.x);
+                const cy = toY(pt.y);
+                if (pt.c === 1) {
+                    svgHTML += `<circle cx="${cx}" cy="${cy}" r="6.5" fill="#38bdf8" stroke="#0f172a" stroke-width="2"/>`;
+                } else {
+                    // Triangle for Class 0
+                    const s = 7;
+                    svgHTML += `<polygon points="${cx},${cy - s} ${cx - s},${cy + s} ${cx + s},${cy + s}" fill="#f59e0b" stroke="#0f172a" stroke-width="2"/>`;
+                }
+            });
+
+            // Draggable Split Threshold Line x = t
+            svgHTML += `
+                <line x1="${xt}" y1="${pad.top - 6}" x2="${xt}" y2="${height - pad.bottom}" stroke="#f43f5e" stroke-width="3" class="cursor-ew-resize"/>
+                <rect x="${xt - 36}" y="${height - pad.bottom - 26}" width="72" height="22" rx="6" fill="#f43f5e"/>
+                <text x="${xt}" y="${height - pad.bottom - 11}" text-anchor="middle" class="fill-white text-[11px] font-bold mono">x = ${t.toFixed(2)}</text>
+            `;
+
+            splitSimSvg.innerHTML = svgHTML;
+
+            // Update Right Panel Metrics
+            document.getElementById('threshValDisplay').textContent = `t = ${t.toFixed(2)}`;
+            document.getElementById('activeSplitSummaryLabel').textContent = `Binary threshold split at x ≤ ${t.toFixed(2)}`;
+            updateMetricsUI(metrics);
+        }
+
+        function renderCardinalityView() {
+            const width = 640, height = 390;
+            const pad = { top: 42, right: 24, bottom: 48, left: 42 };
+            const plotW = width - pad.left - pad.right;
+            const plotH = height - pad.top - pad.bottom;
+
+            // Clean Feature A always has 2 buckets: Bucket 1 (10 Pos, 2 Neg), Bucket 2 (2 Pos, 10 Neg)
+            const cleanBuckets = [{ pos: 10, neg: 2 }, { pos: 2, neg: 10 }];
+            const noisyBuckets = mod2State.noisyBuckets;
+
+            const activeBuckets = mod2State.cardinalityCandidate === 'clean' ? cleanBuckets : noisyBuckets;
+            const metrics = evaluateSplitMetrics(activeBuckets);
+
+            const cleanMetrics = evaluateSplitMetrics(cleanBuckets);
+            const noisyMetrics = evaluateSplitMetrics(noisyBuckets);
+
+            let svgHTML = '';
+
+            // Top Banner inside SVG comparing ID3 Winner vs C4.5 Winner
+            const id3Winner = noisyMetrics.ig > cleanMetrics.ig ? `Feature B (Noisy k=${mod2State.numBuckets})` : 'Feature A (Clean Binary)';
+            const c45Winner = noisyMetrics.gainRatio > cleanMetrics.gainRatio ? `Feature B (Noisy k=${mod2State.numBuckets})` : 'Feature A (Clean Binary)';
+
+            svgHTML += `
+                <rect x="${pad.left}" y="8" width="${plotW}" height="26" rx="6" fill="rgba(15, 23, 42, 0.6)" stroke="rgba(148, 163, 184, 0.2)"/>
+                <text x="${pad.left + 12}" y="25" class="fill-sky-400 text-[11px] font-semibold mono">
+                    ID3 (Info Gain) Picks: ${id3Winner} (${Math.max(cleanMetrics.ig, noisyMetrics.ig).toFixed(3)} bits)
+                </text>
+                <text x="${width - pad.right - 12}" y="25" text-anchor="end" class="fill-purple-400 text-[11px] font-semibold mono">
+                    C4.5 (Gain Ratio) Picks: ${c45Winner} (${Math.max(cleanMetrics.gainRatio, noisyMetrics.gainRatio).toFixed(3)})
+                </text>
+            `;
+
+            // Draw Buckets as Stacked Columns of Balls
+            const k = activeBuckets.length;
+            const colW = plotW / k;
+
+            activeBuckets.forEach((b, i) => {
+                const bx = pad.left + i * colW;
+                const centerX = bx + colW / 2;
+                const n = b.pos + b.neg;
+
+                // Bucket Container Box
+                svgHTML += `
+                    <rect x="${bx + 3}" y="${pad.top + 8}" width="${Math.max(8, colW - 6)}" height="${plotH - 12}" rx="6" fill="rgba(30, 41, 59, 0.35)" stroke="rgba(148, 163, 184, 0.2)"/>
+                    <text x="${centerX}" y="${height - pad.bottom + 16}" text-anchor="middle" class="fill-slate-400 text-[10px] mono">B${i + 1}</text>
+                    <text x="${centerX}" y="${pad.top + 22}" text-anchor="middle" class="fill-slate-300 text-[10px] mono font-bold">${b.pos}/${n}</text>
+                `;
+
+                // Draw samples stacked from bottom of bucket
+                const items = [];
+                for (let p = 0; p < b.pos; p++) items.push(1);
+                for (let ng = 0; ng < b.neg; ng++) items.push(0);
+
+                const radius = k > 14 ? 5.5 : 7.5;
+                const perRow = k === 2 ? 4 : 1;
+
+                items.forEach((label, idx) => {
+                    const row = Math.floor(idx / perRow);
+                    const col = idx % perRow;
+                    const offsetX = perRow > 1 ? (col - (perRow - 1) / 2) * (radius * 2.4) : 0;
+                    const cx = centerX + offsetX;
+                    const cy = height - pad.bottom - 14 - row * (radius * 2.3);
+
+                    if (label === 1) {
+                        svgHTML += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="#38bdf8" stroke="#0f172a" stroke-width="1.5"/>`;
+                    } else {
+                        svgHTML += `<circle cx="${cx}" cy="${cy}" r="${radius}" fill="#f59e0b" stroke="#0f172a" stroke-width="1.5"/>`;
+                    }
+                });
+            });
+
+            svgHTML += `
+                <text x="${pad.left + plotW / 2}" y="${height - 8}" text-anchor="middle" class="fill-slate-400 text-xs">
+                    ${mod2State.cardinalityCandidate === 'clean' ? 'Feature A: Clean Binary Feature (k = 2 buckets, SplitInfo = 1.00 bit)' : `Feature B: High-Cardinality Noisy ID Feature (k = ${k} buckets, SplitInfo = ${metrics.splitInfo.toFixed(2)} bits)`}
+                </text>
+            `;
+
+            splitSimSvg.innerHTML = svgHTML;
+
+            document.getElementById('bucketCountDisplay').textContent = `k = ${mod2State.numBuckets} buckets`;
+            document.getElementById('activeSplitSummaryLabel').textContent =
+                mod2State.cardinalityCandidate === 'clean'
+                    ? 'Evaluating Feature A: Clean Binary Split (k = 2)'
+                    : `Evaluating Feature B: Noisy ID Split (k = ${mod2State.numBuckets} buckets)`;
+
+            updateMetricsUI(metrics);
+        }
+
+        function updateMetricsUI(m) {
+            document.getElementById('parentDistPill').textContent = `N = ${m.totalN} (${m.totalPos} Pos, ${m.totalNeg} Neg)`;
+
+            document.getElementById('metricIGVal').textContent = `${m.ig.toFixed(3)} bits`;
+            document.getElementById('metricParentH').textContent = m.parentH.toFixed(3);
+            document.getElementById('metricChildH').textContent = m.childH.toFixed(3);
+            document.getElementById('barIG').style.width = `${Math.min(100, m.ig * 100)}%`;
+
+            document.getElementById('metricGainRatioVal').textContent = m.gainRatio.toFixed(3);
+            document.getElementById('metricSplitInfo').textContent = `${m.splitInfo.toFixed(3)} bits`;
+            document.getElementById('metricPenaltyFactor').textContent = `÷ ${m.splitInfo.toFixed(2)}`;
+            document.getElementById('barGainRatio').style.width = `${Math.min(100, m.gainRatio * 100)}%`;
+
+            document.getElementById('metricGiniGainVal').textContent = m.giniGain.toFixed(3);
+            document.getElementById('metricParentG').textContent = m.parentG.toFixed(3);
+            document.getElementById('metricChildG').textContent = m.childG.toFixed(3);
+            document.getElementById('barGiniGain').style.width = `${Math.min(100, m.giniGain * 200)}%`;
+
+            const misEl = document.getElementById('metricMisclassGainVal');
+            misEl.textContent = m.misclassGain.toFixed(3);
+            document.getElementById('metricParentE').textContent = m.parentE.toFixed(3);
+            document.getElementById('metricChildE').textContent = m.childE.toFixed(3);
+            document.getElementById('barMisclassGain').style.width = `${Math.min(100, m.misclassGain * 200)}%`;
+        }
+
+        // Event Listeners for Module 2
+        thresholdSlider.addEventListener('input', (e) => {
+            mod2State.threshold = parseFloat(e.target.value);
+            renderModule2();
+        });
+
+        bucketCountSlider.addEventListener('input', (e) => {
+            mod2State.numBuckets = parseInt(e.target.value, 10);
+            mod2State.noisyBuckets = generateNoisyBuckets(mod2State.numBuckets);
+            mod2State.cardinalityCandidate = 'noisy';
+            updateCardinalityCandidateButtons();
+            renderModule2();
+        });
+
+        // Allow dragging threshold directly on Module 2 SVG
+        let isDraggingMod2 = false;
+        function handleMod2Pointer(e) {
+            if (mod2State.scenario === 'cardinality_trap') return;
+            const rect = splitSimSvg.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const relX = (clientX - rect.left) / rect.width * 640;
+            const padLeft = 44, plotW = 640 - 44 - 28;
+            const newT = Math.min(9.5, Math.max(0.5, ((relX - padLeft) / plotW) * 10));
+            mod2State.threshold = +newT.toFixed(2);
+            thresholdSlider.value = mod2State.threshold;
+            renderModule2();
+        }
+
+        splitSimSvg.addEventListener('mousedown', (e) => { isDraggingMod2 = true; handleMod2Pointer(e); });
+        window.addEventListener('mousemove', (e) => { if (isDraggingMod2) handleMod2Pointer(e); });
+        window.addEventListener('mouseup', () => { isDraggingMod2 = false; });
+        splitSimSvg.addEventListener('touchstart', (e) => { isDraggingMod2 = true; handleMod2Pointer(e); }, { passive: true });
+        splitSimSvg.addEventListener('touchmove', (e) => { if (isDraggingMod2) handleMod2Pointer(e); }, { passive: true });
+
+        // -----------------------------------------------------------------
+        // 4. MODULE 3: PROBABILISTIC ML & KL-DIVERGENCE SANDBOX
+        // -----------------------------------------------------------------
+        const mleN1Slider = document.getElementById('mleN1Slider');
+        const mleN0Slider = document.getElementById('mleN0Slider');
+
+        function renderModule3MLE() {
+            const n1 = parseInt(mleN1Slider.value, 10);
+            const n0 = parseInt(mleN0Slider.value, 10);
+            const totalN = n1 + n0;
+
+            document.getElementById('mleN1Val').textContent = `${n1} samples`;
+            document.getElementById('mleN0Val').textContent = `${n0} samples`;
+
+            if (totalN === 0) {
+                document.getElementById('mlePVal').textContent = 'Undefined (N = 0)';
+                return;
+            }
+
+            const pHat = n1 / totalN;
+            const pLaplace = (n1 + 1) / (totalN + 2);
+            const h = shannonEntropy(pHat, false);
+            const klUniform = 1.0 - h; // For binary classification, log2(2) - H(p)
+            const nll = totalN * h;
+
+            document.getElementById('mlePVal').textContent = `${pHat.toFixed(3)} (N = ${totalN})`;
+            document.getElementById('mleLaplaceVal').textContent = pLaplace.toFixed(3);
+            document.getElementById('mleEntropyVal').textContent = `${h.toFixed(3)} bits`;
+            document.getElementById('mleKLUniformVal').textContent = `${klUniform.toFixed(3)} bits`;
+            document.getElementById('mleNLLVal').textContent = `${nll.toFixed(2)} bits (= N · H(p̂))`;
+        }
+
+        mleN1Slider.addEventListener('input', renderModule3MLE);
+        mleN0Slider.addEventListener('input', renderModule3MLE);
+
+        // -----------------------------------------------------------------
+        // 5. GUIDED MISSIONS CONTROLLER
+        // -----------------------------------------------------------------
+        function activateMission(id) {
+            document.querySelectorAll('.mission-btn').forEach(btn => btn.classList.remove('mission-active'));
+            document.getElementById(`mission-btn-${id}`).classList.add('mission-active');
+
+            const nameEl = document.getElementById('activeMissionName');
+            const titleEl = document.getElementById('missionGuideTitle');
+            const textEl = document.getElementById('missionGuideText');
+
+            if (id === 1) {
+                nameEl.textContent = 'Mission 1 — Strict Concavity Trap';
+                titleEl.textContent = 'Mission 1 Guide: Why does Misclassification Error fail during tree growth?';
+                textEl.innerHTML =
+                    'Look at <strong>Module 1</strong> and <strong>Module 2 (Scenario 2)</strong>: A parent node with $p = 0.75$ splits into $p_L = 0.60$ and $p_R = 1.00$ (a 100% pure leaf!). Because both children stay on the same side of $p = 0.5$, piecewise-linear Misclassification Error has zero curvature ($I\'\'(p) = 0$) and awards <strong>0.000 gain</strong>. Strictly concave Gini and Entropy arch above the secant chord, rewarding the pure child.';
+                setChordPreset(0.75, 0.60, 1.00);
+                loadScenario('concavity_trap');
+            } else if (id === 2) {
+                nameEl.textContent = 'Mission 2 — CART (Gini) vs. ID3 (Entropy)';
+                titleEl.textContent = 'Mission 2 Guide: How do Gini Impurity and Shannon Entropy differ?';
+                textEl.innerHTML =
+                    'In <strong>Module 1</strong>, observe the curvature column $|I\'\'(p)|$ as $p = 0.88$: Gini has constant curvature $|G\'\'(p)| = 4.0$, whereas Entropy\'s curvature $|H\'\'(p)| = \\frac{1}{p(1-p)\\ln 2}$ spikes near $p \\to 0, 1$. In <strong>Module 2 (Scenario 1)</strong>, click the "Snap to Max" buttons to see how subtle curvature differences shift the optimal split threshold.';
+                setChordPreset(0.85, 0.75, 0.99);
+                loadScenario('continuous');
+            } else if (id === 3) {
+                nameEl.textContent = 'Mission 3 — High-Cardinality Trap (ID3 vs C4.5)';
+                titleEl.textContent = 'Mission 3 Guide: Why does ID3 overfit to "User ID", and how does C4.5 fix it?';
+                textEl.innerHTML =
+                    'Scroll to <strong>Module 2 (Scenario 3)</strong>: We compare Feature A (Clean Binary) against Feature B (Noisy $k$-bucket feature). Drag the bucket slider $k$ from 4 to 20: ID3\'s Information Gain increases monotonically with $k$ because tiny buckets are accidentally pure. C4.5 divides by $\\text{SplitInfo}(X) = H(X)$, penalizing fragmented partitions!';
+                loadScenario('cardinality_trap');
+                document.getElementById('module-2').scrollIntoView({ behavior: 'smooth' });
+            } else if (id === 4) {
+                nameEl.textContent = 'Mission 4 — Probabilistic ML & KL-Divergence';
+                titleEl.textContent = 'Mission 4 Guide: Decision Trees as Maximum Likelihood Density Estimators';
+                textEl.innerHTML =
+                    'Scroll to <strong>Module 3</strong>: Adjust the leaf class counts $(N_1, N_0)$. Notice that the Negative Log-Likelihood $-\ell(\\hat{p})$ of a Bernoulli leaf equals $N \\cdot H(\\hat{p})$, and $H(\\hat{p}) + D_{\\text{KL}}(\\hat{p} \\parallel \\text{Uniform}) = 1\\text{ bit}$. Thus, ID3 tree induction is greedy Maximum Likelihood Estimation!';
+                mleN1Slider.value = 19;
+                mleN0Slider.value = 1;
+                renderModule3MLE();
+                document.getElementById('module-3').scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        // -----------------------------------------------------------------
+        // 6. THEME TOGGLE & INITIALIZATION
+        // -----------------------------------------------------------------
+        document.getElementById('themeToggle').addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+        });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            mod2State.points = datasets.continuous;
+            renderImpurityPlot();
+            renderModule2();
+            renderModule3MLE();
+        });
+    </script>
+</body>
+</html>
